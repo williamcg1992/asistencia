@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Asistencia GPS</title>
+  <title>Asistencia GPS (con debug)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -22,11 +22,18 @@
       background: white;
       border-radius: 10px;
     }
+    .debug {
+      font-size: 14px;
+      margin-top: 20px;
+      color: #333;
+    }
   </style>
 </head>
 <body>
   <h2>Verificación de ubicación para asistencia</h2>
   <p id="status">Obteniendo tu ubicación actual...</p>
+
+  <div class="debug" id="debugInfo"></div>
 
   <div id="formulario">
     <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScHy1uAtJtALnX9WjDOPvP2XPRdxMuY7kmK3AMkAVnItnrXKQ/viewform?embedded=true">Cargando formulario…</iframe>
@@ -34,13 +41,13 @@
 
   <script>
     const ubicaciones = [
-      { lat: -34.603715, lng: -58.381590 }, // Sede San Juan
-      { lat: -34.604470, lng: -58.380460 }, // Sede Humberto Primo
-      { lat: -34.607220, lng: -58.380400 }, // Sede Estados Unidos
-      { lat: -34.610100, lng: -58.379200 }, // Sede Piedras
-      { lat: -34.615000, lng: -58.381000 }  // Sede Casa
+      { lat: -34.603715, lng: -58.381590, nombre: "San Juan" },
+      { lat: -34.604470, lng: -58.380460, nombre: "Humberto Primo" },
+      { lat: -34.607220, lng: -58.380400, nombre: "Estados Unidos" },
+      { lat: -34.610100, lng: -58.379200, nombre: "Piedras" },
+      { lat: -34.615000, lng: -58.381000, nombre: "Casa" }
     ];
-    const maxDistancia = 300; // metros
+    const maxDistancia = 300;
 
     function toRad(x) {
       return x * Math.PI / 180;
@@ -57,17 +64,13 @@
       return R * c;
     }
 
-    function estaEnUbicacionValida(lat, lng) {
-      return ubicaciones.some(ubi => {
-        const d = calcularDistancia(lat, lng, ubi.lat, ubi.lng);
-        console.log(`Distancia a ${ubi.lat}, ${ubi.lng} = ${d.toFixed(2)} m`);
-        return d <= maxDistancia;
-      });
-    }
-
     function mostrarMensaje(texto) {
       document.getElementById("status").innerText = texto;
       console.log(texto);
+    }
+
+    function mostrarDebug(info) {
+      document.getElementById("debugInfo").innerHTML = info;
     }
 
     if ("geolocation" in navigator) {
@@ -75,9 +78,19 @@
         (position) => {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
-          console.log(`Tu ubicación: ${lat}, ${lng}`);
 
-          if (estaEnUbicacionValida(lat, lng)) {
+          let info = `<strong>Tu ubicación:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>`;
+          let dentro = false;
+
+          ubicaciones.forEach(ubi => {
+            const d = calcularDistancia(lat, lng, ubi.lat, ubi.lng);
+            info += `↳ A ${ubi.nombre}: ${d.toFixed(2)} m<br>`;
+            if (d <= maxDistancia) dentro = true;
+          });
+
+          mostrarDebug(info);
+
+          if (dentro) {
             mostrarMensaje("Ubicación verificada. Podés completar el formulario.");
             document.getElementById("formulario").style.display = "block";
           } else {
