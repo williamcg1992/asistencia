@@ -12,7 +12,7 @@
     #formularioManual { display: none; margin-top: 20px; text-align: left; }
     input, button, textarea { display: block; margin: 10px auto; font-size: 1em; padding: 10px; width: 90%; max-width: 400px; }
     textarea { height: 100px; }
-    #formLink { text-align: center; margin-top: 10px; }
+    #formLink { text-align: center; margin-top: 10px; display: none; }
   </style>
 </head>
 <body>
@@ -27,7 +27,7 @@
     <textarea id="oracion" readonly></textarea>
     <button onclick="generarYCopiarOracion()">Generar y copiar oración</button>
     <div id="formLink">
-      <a href="https://docs.google.com/forms/d/e/1FAIpQLSe62BPuf-6dKswd862JtSq7tL7jXERISbLxrK6qmuDg9DfhAg/viewform?usp=header" target="_blank">Ir al formulario de asistencia</a>
+      <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSe62BPuf-6dKswd862JtSq7tL7jXERISbLxrK6qmuDg9DfhAg/viewform?embedded=true" width="100%" height="800" frameborder="0" marginheight="0" marginwidth="0">Cargando…</iframe>
     </div>
   </div>
 
@@ -40,7 +40,6 @@
       { nombre: "Verificador", lat: -34.6289678, lng: -58.4367771 }
     ];
     const tolerancia = 300;
-    const urlFormulario = "https://docs.google.com/forms/d/e/1FAIpQLSe62BPuf-6dKswd862JtSq7tL7jXERISbLxrK6qmuDg9DfhAg/viewform?usp=header";
     let ultimaVez = 0;
     let sedeActual = null;
 
@@ -105,6 +104,7 @@
 
       document.getElementById("oracion").value = textoFinal;
       navigator.clipboard.writeText(textoFinal);
+      document.getElementById("formLink").style.display = "block";
     }
 
     function mostrarError(error) {
