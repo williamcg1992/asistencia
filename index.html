@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Asistencia GPS (con debug)</title>
+  <title>Asistencia GPS (mejorado)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -27,13 +27,19 @@
       margin-top: 20px;
       color: #333;
     }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
   <h2>Verificación de ubicación para asistencia</h2>
-  <p id="status">Obteniendo tu ubicación actual...</p>
+  <p id="status">Esperando ubicación…</p>
 
   <div class="debug" id="debugInfo"></div>
+  <button onclick="forzarVerificacion()">Volver a intentar</button>
 
   <div id="formulario">
     <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScHy1uAtJtALnX9WjDOPvP2XPRdxMuY7kmK3AMkAVnItnrXKQ/viewform?embedded=true">Cargando formulario…</iframe>
@@ -73,54 +79,44 @@
       document.getElementById("debugInfo").innerHTML = info;
     }
 
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
+    function verificarUbicacion(lat, lng) {
+      let info = `<strong>Tu ubicación:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>`;
+      let dentro = false;
 
-          let info = `<strong>Tu ubicación:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>`;
-          let dentro = false;
+      ubicaciones.forEach(ubi => {
+        const d = calcularDistancia(lat, lng, ubi.lat, ubi.lng);
+        info += `↳ A ${ubi.nombre}: ${d.toFixed(2)} m<br>`;
+        if (d <= maxDistancia) dentro = true;
+      });
 
-          ubicaciones.forEach(ubi => {
-            const d = calcularDistancia(lat, lng, ubi.lat, ubi.lng);
-            info += `↳ A ${ubi.nombre}: ${d.toFixed(2)} m<br>`;
-            if (d <= maxDistancia) dentro = true;
-          });
+      mostrarDebug(info);
 
-          mostrarDebug(info);
+      if (dentro) {
+        mostrarMensaje("Ubicación verificada. Podés completar el formulario.");
+        document.getElementById("formulario").style.display = "block";
+      } else {
+        mostrarMensaje("Estás fuera de las sedes habilitadas.");
+      }
+    }
 
-          if (dentro) {
-            mostrarMensaje("Ubicación verificada. Podés completar el formulario.");
-            document.getElementById("formulario").style.display = "block";
-          } else {
-            mostrarMensaje("Estás fuera de las sedes habilitadas.");
-          }
+    let watchID;
+
+    function iniciarGPS() {
+      if (!navigator.geolocation) {
+        mostrarMensaje("Este navegador no soporta geolocalización.");
+        return;
+      }
+
+      mostrarMensaje("Buscando ubicación precisa...");
+
+      watchID = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          verificarUbicacion(lat, lng);
         },
-        (error) => {
-          switch(error.code) {
-            case error.PERMISSION_DENIED:
-              mostrarMensaje("Acceso a ubicación denegado. Activá el GPS.");
-              break;
-            case error.POSITION_UNAVAILABLE:
-              mostrarMensaje("No se pudo obtener ubicación. Intentalo de nuevo.");
-              break;
-            case error.TIMEOUT:
-              mostrarMensaje("Tiempo de espera agotado para el GPS.");
-              break;
-            default:
-              mostrarMensaje("Error desconocido al obtener ubicación.");
-          }
+        (err) => {
+          mostrarMensaje("Error al obtener ubicación: " + err.message);
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        }
-      );
-    } else {
-      mostrarMensaje("Este navegador no soporta geolocalización.");
-    }
-  </script>
-</body>
-</html>
