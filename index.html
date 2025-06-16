@@ -1,39 +1,21 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Verificación GPS Asistencia</title>
+  <meta charset="UTF-8" />
+  <title>Verificación de Asistencia</title>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #f0f0f0; }
     .debug { font-size: 0.95em; margin-top: 20px; color: #333; }
     .dentro { color: green; font-weight: bold; }
     .fuera { color: red; font-weight: bold; }
-    #formulario-link { 
-      display: none;
-      margin-top: 30px; 
-      font-size: 1.2em;
-    }
-    #formulario-link a {
-      text-decoration: none;
-      background: green;
-      color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      display: inline-block;
-    }
+    #fechaHora { margin-top: 20px; font-size: 1.1em; font-weight: bold; color: #222; }
   </style>
 </head>
 <body>
-  <h2>Registro de Asistencia con Verificación GPS</h2>
+  <h2>Verificación GPS para Asistencia</h2>
   <p id="mensaje">Obteniendo ubicación…</p>
-
+  <div id="fechaHora"></div>
   <div class="debug" id="debugInfo"></div>
-
-  <div id="formulario-link">
-    <a href="https://forms.gle/efHR1fs1ZuSQDiPLA" target="_blank">
-      👉 Abrir Formulario de Asistencia
-    </a>
-  </div>
 
   <script>
     const sedes = [
@@ -44,13 +26,15 @@
       { nombre: "Casa", lat: -34.615000, lng: -58.381000 }
     ];
     const tolerancia = 300; // metros
+    const urlFormulario = "https://forms.gle/efHR1fs1ZuSQDiPLA";
+    let redireccionado = false;
 
     function toRad(x) {
       return x * Math.PI / 180;
     }
 
     function calcularDistancia(lat1, lon1, lat2, lon2) {
-      const R = 6371000; // radio de la Tierra en metros
+      const R = 6371000;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
       const a = Math.sin(dLat / 2) ** 2 +
@@ -61,32 +45,29 @@
     }
 
     function verificarUbicacion(lat, lng) {
-      let estaCerca = false;
-      let debug = `<strong>Tu ubicación actual:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br><ul>`;
+      let debug = `<strong>Tu ubicación:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br><ul>`;
+      let dentro = false;
 
-      sedes.forEach(sede => {
+      for (const sede of sedes) {
         const dist = calcularDistancia(lat, lng, sede.lat, sede.lng);
-        const dentro = dist <= tolerancia;
-        if (dentro) estaCerca = true;
+        const enRango = dist <= tolerancia;
         debug += `<li>${sede.nombre}: ${dist.toFixed(2)} m 
-                    <span class="${dentro ? 'dentro' : 'fuera'}">
-                      ${dentro ? '✔️ Dentro del rango' : '❌ Fuera del rango'}
-                    </span>
-                  </li>`;
-      });
+                  <span class="${enRango ? 'dentro' : 'fuera'}">
+                  ${enRango ? '✔️ Dentro' : '❌ Fuera'}</span></li>`;
+        if (enRango) dentro = true;
+      }
 
       debug += "</ul>";
       document.getElementById("debugInfo").innerHTML = debug;
 
       const mensaje = document.getElementById("mensaje");
-      const enlace = document.getElementById("formulario-link");
 
-      if (estaCerca) {
-        mensaje.textContent = "✔️ Estás dentro del área permitida. Podés completar el formulario.";
-        enlace.style.display = "block";
-      } else {
+      if (dentro && !redireccionado) {
+        mensaje.textContent = "✔️ Ubicación verificada. Redirigiendo al formulario...";
+        redireccionado = true;
+        window.location.href = urlFormulario;
+      } else if (!dentro) {
         mensaje.textContent = "❌ Estás fuera del área de las sedes habilitadas.";
-        enlace.style.display = "none";
       }
     }
 
@@ -97,6 +78,18 @@
       else if (error.code === 3) msg = "Tiempo de espera agotado.";
       document.getElementById("mensaje").textContent = "⚠️ " + msg;
     }
+
+    function actualizarFechaHora() {
+      const now = new Date();
+      const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      const nombreDia = dias[now.getDay()];
+      const fecha = now.toLocaleDateString('es-AR');
+      const hora = now.toLocaleTimeString('es-AR');
+      document.getElementById("fechaHora").textContent = `${nombreDia}, ${fecha} - ${hora}`;
+    }
+
+    setInterval(actualizarFechaHora, 1000);
+    actualizarFechaHora();
 
     if ("geolocation" in navigator) {
       navigator.geolocation.watchPosition(
