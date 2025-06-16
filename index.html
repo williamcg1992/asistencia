@@ -26,21 +26,21 @@
 </head>
 <body>
   <h2>Verificación de ubicación para asistencia</h2>
-  <p id="status">Esperando ubicación…</p>
+  <p id="status">Obteniendo tu ubicación actual...</p>
 
   <div id="formulario">
-    <iframe src="https://forms.gle/tL2h8dRQ6sZH1nU79">Cargando formulario…</iframe>
+    <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScHy1uAtJtALnX9WjDOPvP2XPRdxMuY7kmK3AMkAVnItnrXKQ/viewform?embedded=true">Cargando formulario…</iframe>
   </div>
 
   <script>
     const ubicaciones = [
-      { lat: -34.603715, lng: -58.381590 }, // San Juan
-      { lat: -34.604470, lng: -58.380460 }, // Humberto Primo
-      { lat: -34.607220, lng: -58.380400 }, // Estados Unidos
-      { lat: -34.610100, lng: -58.379200 }, // Piedras
-      { lat: -34.615000, lng: -58.381000 }  // Casa
+      { lat: -34.603715, lng: -58.381590 }, // Sede San Juan
+      { lat: -34.604470, lng: -58.380460 }, // Sede Humberto Primo
+      { lat: -34.607220, lng: -58.380400 }, // Sede Estados Unidos
+      { lat: -34.610100, lng: -58.379200 }, // Sede Piedras
+      { lat: -34.615000, lng: -58.381000 }  // Sede Casa
     ];
-    const maxDistancia = 3000; // metros
+    const maxDistancia = 300; // metros
 
     function toRad(x) {
       return x * Math.PI / 180;
