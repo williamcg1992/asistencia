@@ -1,0 +1,74 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Asistencia GPS</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 40px;
+      background: #f4f4f4;
+    }
+    #formulario {
+      display: none;
+      margin-top: 30px;
+    }
+    iframe {
+      width: 100%;
+      max-width: 700px;
+      height: 700px;
+      border: none;
+      background: white;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Verificación de ubicación para asistencia</h2>
+  <p id="status">Obteniendo tu ubicación actual...</p>
+
+  <div id="formulario">
+    <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScHy1uAtJtALnX9WjDOPvP2XPRdxMuY7kmK3AMkAVnItnrXKQ/viewform?embedded=true">Cargando formulario…</iframe>
+  </div>
+
+  <script>
+    const ubicaciones = [{'lat': -34.603715, 'lng': -58.38159}, {'lat': -34.60447, 'lng': -58.38046}, {'lat': -34.60722, 'lng': -58.3804}, {'lat': -34.6101, 'lng': -58.3792}, {'lat': -34.615, 'lng': -58.381}];
+    const maxDistancia = 50;
+
+    function toRad(x) { return x * Math.PI / 180; }
+
+    function calcularDistancia(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function estaEnUbicacionValida(lat, lng) {
+      return ubicaciones.some(ubi => {
+        const d = calcularDistancia(lat, lng, ubi.lat, ubi.lng);
+        return d <= maxDistancia;
+      });
+    }
+
+    navigator.geolocation.getCurrentPosition(function(position) {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      if (estaEnUbicacionValida(lat, lng)) {
+        document.getElementById("status").innerText = "Ubicación verificada. Podés completar el formulario.";
+        document.getElementById("formulario").style.display = "block";
+      } else {
+        document.getElementById("status").innerText = "Estás fuera de las sedes habilitadas.";
+      }
+    }, function(error) {
+      document.getElementById("status").innerText = "No se pudo obtener tu ubicación. Activá el GPS y permití acceso.";
+    });
+  </script>
+</body>
+</html>
