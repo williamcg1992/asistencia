@@ -40,10 +40,10 @@
       { nombre: "Verificador", lat: -34.6289678, lng: -58.4367771 }
     ];
     const tolerancia = 300;
-    let ultimaVez = 0;
     let sedeActual = null;
 
     function toRad(x) { return x * Math.PI / 180; }
+
     function calcularDistancia(lat1, lon1, lat2, lon2) {
       const R = 6371000;
       const dLat = toRad(lat2 - lat1);
@@ -65,10 +65,6 @@
     }
 
     function verificarUbicacion(lat, lng) {
-      const ahora = Date.now();
-      if (ahora - ultimaVez < 10 * 60 * 1000) return;
-      ultimaVez = ahora;
-
       let debug = `<strong>Tu ubicación:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br><ul>`;
       sedeActual = null;
 
@@ -95,9 +91,28 @@
     function generarYCopiarOracion() {
       const nombre = document.getElementById("nombre").value.trim();
       const dni = document.getElementById("dni").value.trim();
+
+      if (!nombre || !dni) {
+        alert("Por favor, completá todos los campos.");
+        return;
+      }
+
+      // Excepción para supervisores
+      if (dni !== "00000000") {
+        const ahora = Date.now();
+        const ultimo = localStorage.getItem("registroAsistencia");
+
+        if (ultimo && ahora - parseInt(ultimo) < 10 * 60 * 1000) {
+          alert("⚠️ Solo se permite un intento cada 10 minutos desde este dispositivo.");
+          return;
+        }
+
+        localStorage.setItem("registroAsistencia", ahora.toString());
+      }
+
       const now = new Date();
       const fecha = now.toISOString().split("T")[0];
-      const hora = now.toTimeString().split(" ")[0].slice(0,5);
+      const hora = now.toTimeString().split(" ")[0].slice(0, 5);
       const oracion = `${sedeActual} - ${fecha} ${hora} - ${nombre} - DNI: ${dni}`;
       const codigo = generarCodigoVerificador(oracion);
       const textoFinal = `${oracion} - Código: ${codigo}`;
@@ -117,7 +132,7 @@
 
     function actualizarFechaHora() {
       const now = new Date();
-      const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sabado'];
+      const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
       const nombreDia = dias[now.getDay()];
       const fecha = now.toLocaleDateString('es-AR');
       const hora = now.toLocaleTimeString('es-AR');
