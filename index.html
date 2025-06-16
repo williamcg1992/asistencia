@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -33,8 +32,14 @@
   </div>
 
   <script>
-    const ubicaciones = [{'lat': -34.603715, 'lng': -58.38159}, {'lat': -34.60447, 'lng': -58.38046}, {'lat': -34.60722, 'lng': -58.3804}, {'lat': -34.6101, 'lng': -58.3792}, {'lat': -34.615, 'lng': -58.381}];
-    const maxDistancia = 50;
+    const ubicaciones = [
+      { lat: -34.603715, lng: -58.381590 }, // Sede San Juan
+      { lat: -34.604470, lng: -58.380460 }, // Sede Humberto Primo
+      { lat: -34.607220, lng: -58.380400 }, // Sede Estados Unidos
+      { lat: -34.610100, lng: -58.379200 }, // Sede Piedras
+      { lat: -34.615000, lng: -58.381000 }  // Sede Casa
+    ];
+    const maxDistancia = 100; // metros
 
     function toRad(x) { return x * Math.PI / 180; }
 
