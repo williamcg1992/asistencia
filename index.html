@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+  <meta charset="UTF-8">
   <title>Asistencia GPS</title>
   <style>
     body {
@@ -25,7 +26,7 @@
 </head>
 <body>
   <h2>Verificación de ubicación para asistencia</h2>
-  <p id="status">Obteniendo tu ubicación actual...</p>
+  <p id="status">Esperando ubicación…</p>
 
   <div id="formulario">
     <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScHy1uAtJtALnX9WjDOPvP2XPRdxMuY7kmK3AMkAVnItnrXKQ/viewform?embedded=true">Cargando formulario…</iframe>
@@ -33,23 +34,25 @@
 
   <script>
     const ubicaciones = [
-      { lat: -34.603715, lng: -58.381590 }, // Sede San Juan
-      { lat: -34.604470, lng: -58.380460 }, // Sede Humberto Primo
-      { lat: -34.607220, lng: -58.380400 }, // Sede Estados Unidos
-      { lat: -34.610100, lng: -58.379200 }, // Sede Piedras
-      { lat: -34.615000, lng: -58.381000 }  // Sede Casa
+      { lat: -34.603715, lng: -58.381590 }, // San Juan
+      { lat: -34.604470, lng: -58.380460 }, // Humberto Primo
+      { lat: -34.607220, lng: -58.380400 }, // Estados Unidos
+      { lat: -34.610100, lng: -58.379200 }, // Piedras
+      { lat: -34.615000, lng: -58.381000 }  // Casa
     ];
-    const maxDistancia = 100; // metros
+    const maxDistancia = 300; // metros
 
-    function toRad(x) { return x * Math.PI / 180; }
+    function toRad(x) {
+      return x * Math.PI / 180;
+    }
 
     function calcularDistancia(lat1, lon1, lat2, lon2) {
       const R = 6371000;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      const a = Math.sin(dLat / 2) ** 2 +
                 Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                Math.sin(dLon / 2) ** 2;
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     }
@@ -57,23 +60,54 @@
     function estaEnUbicacionValida(lat, lng) {
       return ubicaciones.some(ubi => {
         const d = calcularDistancia(lat, lng, ubi.lat, ubi.lng);
+        console.log(`Distancia a ${ubi.lat}, ${ubi.lng} = ${d.toFixed(2)} m`);
         return d <= maxDistancia;
       });
     }
 
-    navigator.geolocation.getCurrentPosition(function(position) {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
+    function mostrarMensaje(texto) {
+      document.getElementById("status").innerText = texto;
+      console.log(texto);
+    }
 
-      if (estaEnUbicacionValida(lat, lng)) {
-        document.getElementById("status").innerText = "Ubicación verificada. Podés completar el formulario.";
-        document.getElementById("formulario").style.display = "block";
-      } else {
-        document.getElementById("status").innerText = "Estás fuera de las sedes habilitadas.";
-      }
-    }, function(error) {
-      document.getElementById("status").innerText = "No se pudo obtener tu ubicación. Activá el GPS y permití acceso.";
-    });
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          console.log(`Tu ubicación: ${lat}, ${lng}`);
+
+          if (estaEnUbicacionValida(lat, lng)) {
+            mostrarMensaje("Ubicación verificada. Podés completar el formulario.");
+            document.getElementById("formulario").style.display = "block";
+          } else {
+            mostrarMensaje("Estás fuera de las sedes habilitadas.");
+          }
+        },
+        (error) => {
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              mostrarMensaje("Acceso a ubicación denegado. Activá el GPS.");
+              break;
+            case error.POSITION_UNAVAILABLE:
+              mostrarMensaje("No se pudo obtener ubicación. Intentalo de nuevo.");
+              break;
+            case error.TIMEOUT:
+              mostrarMensaje("Tiempo de espera agotado para el GPS.");
+              break;
+            default:
+              mostrarMensaje("Error desconocido al obtener ubicación.");
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    } else {
+      mostrarMensaje("Este navegador no soporta geolocalización.");
+    }
   </script>
 </body>
 </html>
