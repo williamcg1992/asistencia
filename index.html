@@ -16,8 +16,8 @@
   </style>
 </head>
 <body>
-  <h2>Verificación GPS para Asistencia 1.2.0</h2>
-  <p id="mensaje">Obteniendo ubicación…</p>
+  <h2>Verificación GPS para Asistencia 1.1.0</h2>
+  <p id="mensaje">Inicializando verificación…</p>
   <div id="fechaHora"></div>
   <div class="debug" id="debugInfo"></div>
 
@@ -42,6 +42,7 @@
     const tolerancia = 300;
     let sedeActual = null;
     let posiciones = [];
+    let ipPublica = "";
 
     function toRad(x) { return x * Math.PI / 180; }
 
@@ -82,7 +83,7 @@
 
       const mensaje = document.getElementById("mensaje");
       if (sedeActual) {
-        mensaje.textContent = `✔️ Ubicación verificada: ${sedeActual}. Completá tus datos.`;
+        mensaje.textContent = `✔️ Ubicación verificada: ${sedeActual}. IP: ${ipPublica}`;
         document.getElementById("formularioManual").style.display = "block";
       } else {
         mensaje.textContent = "❌ Estás fuera del área de las sedes habilitadas.";
@@ -119,19 +120,17 @@
       if (dni !== "00000000") {
         const ahora = Date.now();
         const ultimo = localStorage.getItem("registroAsistencia");
-
         if (ultimo && ahora - parseInt(ultimo) < 10 * 60 * 1000) {
           alert("⚠️ Solo se permite un intento cada 10 minutos desde este dispositivo.");
           return;
         }
-
         localStorage.setItem("registroAsistencia", ahora.toString());
       }
 
       const now = new Date();
       const fecha = now.toISOString().split("T")[0];
       const hora = now.toTimeString().split(" ")[0].slice(0, 5);
-      const oracion = `${sedeActual} - ${fecha} ${hora} - ${nombre} - DNI: ${dni}`;
+      const oracion = `${sedeActual} - ${fecha} ${hora} - ${nombre} - DNI: ${dni} - IP: ${ipPublica}`;
       const codigo = generarCodigoVerificador(oracion);
       const textoFinal = `${oracion} - Código: ${codigo}`;
 
@@ -184,10 +183,40 @@
       return esTelefono && !esTablet && esMovilPorTouch;
     }
 
-    setInterval(actualizarFechaHora, 1000);
-    actualizarFechaHora();
+    async function obtenerIPPublica() {
+      try {
+        const res = await fetch('https://api.ipify.org?format=json');
+        const data = await res.json();
+        return data.ip;
+      } catch {
+        return null;
+      }
+    }
 
-    if (esMovil() && !posibleEmulador()) {
+    function esIPDeRedCelular(ip) {
+      const patronesMoviles = [
+        /^190\./, /^181\./, /^200\.74\./, /^179\./, /^181\.230\./ // Puedes expandir según proveedores locales
+      ];
+      return patronesMoviles.some(patron => patron.test(ip));
+    }
+
+    async function iniciarVerificacion() {
+      if (!esMovil() || posibleEmulador()) {
+        document.getElementById("mensaje").textContent = "⚠️ Solo se permite el acceso desde teléfonos móviles físicos.";
+        return;
+      }
+
+      ipPublica = await obtenerIPPublica();
+      if (!ipPublica) {
+        document.getElementById("mensaje").textContent = "⚠️ No se pudo obtener la IP pública. Revisa tu conexión.";
+        return;
+      }
+
+      if (!esIPDeRedCelular(ipPublica)) {
+        document.getElementById("mensaje").textContent = `⚠️ Conexión denegada. Se detectó IP de red Wi-Fi: ${ipPublica}`;
+        return;
+      }
+
       if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(
           pos => registrarMovimiento(pos),
@@ -201,9 +230,11 @@
       } else {
         document.getElementById("mensaje").textContent = "Este navegador no soporta geolocalización.";
       }
-    } else {
-      document.getElementById("mensaje").textContent = "⚠️ Solo se permite el acceso desde teléfonos móviles físicos.";
     }
+
+    setInterval(actualizarFechaHora, 1000);
+    actualizarFechaHora();
+    iniciarVerificacion();
   </script>
 </body>
 </html>
