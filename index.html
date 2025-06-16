@@ -16,7 +16,7 @@
   </style>
 </head>
 <body>
-  <h2>Verificación GPS para Asistencia 1.1.0</h2>
+  <h2>Verificación GPS para Asistencia 1.2.0</h2>
   <p id="mensaje">Obteniendo ubicación…</p>
   <div id="fechaHora"></div>
   <div class="debug" id="debugInfo"></div>
@@ -39,7 +39,7 @@
       { nombre: "Piedras", lat: -34.6203023, lng: -58.377317 },
       { nombre: "Verificador", lat: -34.6289678, lng: -58.4367771 }
     ];
-    const tolerancia = 100;
+    const tolerancia = 300;
     let sedeActual = null;
     let posiciones = [];
 
@@ -180,10 +180,8 @@
       const ua = navigator.userAgent.toLowerCase();
       const esTablet = ua.includes("tablet") || ua.includes("ipad");
       const esTelefono = /android|iphone|ipod/.test(ua);
-      const esTouch = 'ontouchstart' in window && navigator.maxTouchPoints > 0;
-      const anchoPantalla = Math.min(window.innerWidth, window.innerHeight);
-      const pareceTabletPorAncho = anchoPantalla >= 900;
-      return esTelefono && !esTablet && esTouch && !pareceTabletPorAncho;
+      const esMovilPorTouch = 'ontouchstart' in window && navigator.maxTouchPoints > 0;
+      return esTelefono && !esTablet && esMovilPorTouch;
     }
 
     setInterval(actualizarFechaHora, 1000);
