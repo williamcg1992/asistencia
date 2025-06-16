@@ -2,58 +2,57 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Asistencia GPS (mejorado)</title>
+  <title>GPS y Distancias a Sedes</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       text-align: center;
       padding: 40px;
-      background: #f4f4f4;
+      background: #f0f0f0;
     }
-    #formulario {
-      display: none;
-      margin-top: 30px;
-    }
-    iframe {
-      width: 100%;
-      max-width: 700px;
-      height: 700px;
-      border: none;
-      background: white;
-      border-radius: 10px;
-    }
-    .debug {
-      font-size: 14px;
+    .coordenadas {
+      font-size: 1.5em;
       margin-top: 20px;
       color: #333;
     }
-    button {
+    .distancias {
       margin-top: 20px;
-      padding: 10px 20px;
-      font-size: 16px;
+      font-size: 1em;
+      color: #444;
+    }
+    .dentro {
+      color: green;
+      font-weight: bold;
+    }
+    .fuera {
+      color: red;
+      font-weight: bold;
+    }
+    .error {
+      color: red;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <h2>Verificación de ubicación para asistencia</h2>
-  <p id="status">Esperando ubicación…</p>
-
-  <div class="debug" id="debugInfo"></div>
-  <button onclick="forzarVerificacion()">Volver a intentar</button>
-
-  <div id="formulario">
-    <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScHy1uAtJtALnX9WjDOPvP2XPRdxMuY7kmK3AMkAVnItnrXKQ/viewform?embedded=true">Cargando formulario…</iframe>
-  </div>
+  <h2>Tu ubicación y distancia a sedes</h2>
+  <div class="coordenadas" id="gpsInfo">Esperando ubicación...</div>
+  <div class="distancias" id="distancias"></div>
+  <div class="error" id="errorInfo"></div>
 
   <script>
+    const gpsInfo = document.getElementById("gpsInfo");
+    const distancias = document.getElementById("distancias");
+    const errorInfo = document.getElementById("errorInfo");
+    const radioPermitido = 300; // metros
+
     const ubicaciones = [
-      { lat: -34.603715, lng: -58.381590, nombre: "San Juan" },
-      { lat: -34.604470, lng: -58.380460, nombre: "Humberto Primo" },
-      { lat: -34.607220, lng: -58.380400, nombre: "Estados Unidos" },
-      { lat: -34.610100, lng: -58.379200, nombre: "Piedras" },
-      { lat: -34.615000, lng: -58.381000, nombre: "Casa" }
+      { nombre: "San Juan", lat: -34.603715, lng: -58.381590 },
+      { nombre: "Humberto Primo", lat: -34.604470, lng: -58.380460 },
+      { nombre: "Estados Unidos", lat: -34.607220, lng: -58.380400 },
+      { nombre: "Piedras", lat: -34.610100, lng: -58.379200 },
+      { nombre: "Casa", lat: -34.615000, lng: -58.381000 }
     ];
-    const maxDistancia = 300;
 
     function toRad(x) {
       return x * Math.PI / 180;
@@ -63,60 +62,67 @@
       const R = 6371000;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat / 2) ** 2 +
+      const a = Math.sin(dLat/2) ** 2 +
                 Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-                Math.sin(dLon / 2) ** 2;
+                Math.sin(dLon/2) ** 2;
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     }
 
-    function mostrarMensaje(texto) {
-      document.getElementById("status").innerText = texto;
-      console.log(texto);
-    }
+    function mostrarCoordenadas(position) {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      gpsInfo.textContent = `Latitud: ${lat.toFixed(6)} | Longitud: ${lng.toFixed(6)}`;
 
-    function mostrarDebug(info) {
-      document.getElementById("debugInfo").innerHTML = info;
-    }
-
-    function verificarUbicacion(lat, lng) {
-      let info = `<strong>Tu ubicación:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>`;
-      let dentro = false;
+      let output = "<h4>Distancias a sedes:</h4><ul>";
+      let dentroDeAlgunRadio = false;
 
       ubicaciones.forEach(ubi => {
-        const d = calcularDistancia(lat, lng, ubi.lat, ubi.lng);
-        info += `↳ A ${ubi.nombre}: ${d.toFixed(2)} m<br>`;
-        if (d <= maxDistancia) dentro = true;
+        const dist = calcularDistancia(lat, lng, ubi.lat, ubi.lng);
+        const dentro = dist <= radioPermitido;
+        if (dentro) dentroDeAlgunRadio = true;
+
+        output += `<li>
+          ${ubi.nombre}: ${dist.toFixed(2)} metros
+          <span class="${dentro ? 'dentro' : 'fuera'}">
+            ${dentro ? '✔️ Dentro del radio' : '❌ Fuera del radio'}
+          </span>
+        </li>`;
       });
 
-      mostrarDebug(info);
+      output += "</ul>";
+      distancias.innerHTML = output;
+    }
 
-      if (dentro) {
-        mostrarMensaje("Ubicación verificada. Podés completar el formulario.");
-        document.getElementById("formulario").style.display = "block";
-      } else {
-        mostrarMensaje("Estás fuera de las sedes habilitadas.");
+    function mostrarError(error) {
+      switch(error.code) {
+        case error.PERMISSION_DENIED:
+          errorInfo.textContent = "Permiso de ubicación denegado.";
+          break;
+        case error.POSITION_UNAVAILABLE:
+          errorInfo.textContent = "Ubicación no disponible.";
+          break;
+        case error.TIMEOUT:
+          errorInfo.textContent = "Tiempo de espera agotado.";
+          break;
+        default:
+          errorInfo.textContent = "Error desconocido al obtener ubicación.";
       }
     }
 
-    let watchID;
-
-    function iniciarGPS() {
-      if (!navigator.geolocation) {
-        mostrarMensaje("Este navegador no soporta geolocalización.");
-        return;
-      }
-
-      mostrarMensaje("Buscando ubicación precisa...");
-
-      watchID = navigator.geolocation.watchPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          verificarUbicacion(lat, lng);
-        },
-        (err) => {
-          mostrarMensaje("Error al obtener ubicación: " + err.message);
-        },
+    if ("geolocation" in navigator) {
+      navigator.geolocation.watchPosition(
+        mostrarCoordenadas,
+        mostrarError,
         {
           enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    } else {
+      errorInfo.textContent = "Tu navegador no soporta geolocalización.";
+    }
+  </script>
+</body>
+</html>
