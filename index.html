@@ -16,7 +16,7 @@
   </style>
 </head>
 <body>
-  <h2>Verificación GPS para Asistencia 1.2.0</h2>
+  <h2>Verificación GPS para Asistencia 1.1.0</h2>
   <p id="mensaje">Obteniendo ubicación…</p>
   <div id="fechaHora"></div>
   <div class="debug" id="debugInfo"></div>
@@ -41,6 +41,7 @@
     ];
     const tolerancia = 300;
     let sedeActual = null;
+    let posiciones = [];
 
     function toRad(x) { return x * Math.PI / 180; }
 
@@ -88,6 +89,25 @@
       }
     }
 
+    function registrarMovimiento(pos) {
+      const nueva = { lat: pos.coords.latitude, lng: pos.coords.longitude, t: Date.now() };
+      posiciones.push(nueva);
+      if (posiciones.length > 2) posiciones.shift();
+
+      if (posiciones.length === 2) {
+        const d = calcularDistancia(posiciones[0].lat, posiciones[0].lng, posiciones[1].lat, posiciones[1].lng);
+        const dt = (posiciones[1].t - posiciones[0].t) / 1000; // en segundos
+        const velocidad = d / dt;
+
+        if (velocidad > 100) {
+          document.getElementById("mensaje").textContent = "⚠️ Movimiento anormal detectado. Posible manipulación de GPS.";
+          return;
+        }
+      }
+
+      verificarUbicacion(pos.coords.latitude, pos.coords.longitude);
+    }
+
     function generarYCopiarOracion() {
       const nombre = document.getElementById("nombre").value.trim();
       const dni = document.getElementById("dni").value.trim();
@@ -102,7 +122,7 @@
         const ultimo = localStorage.getItem("registroAsistencia");
 
         if (ultimo && ahora - parseInt(ultimo) < 10 * 60 * 1000) {
-          alert("⚠️ Solo se permite un intento cada 10 minutos desde este dispositivo ⚠️");
+          alert("⚠️ Solo se permite un intento cada 10 minutos desde este dispositivo.");
           return;
         }
 
@@ -140,7 +160,6 @@
 
     function posibleEmulador() {
       const ua = navigator.userAgent || '';
-      const tieneWebGL = !!window.WebGLRenderingContext;
       const usaHeadless = /HeadlessChrome/.test(ua);
       const resolucionBaja = screen.width <= 360 && screen.height <= 640;
       const gpsFalso = 'geolocation' in navigator && !('permissions' in navigator);
@@ -164,7 +183,7 @@
     if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && !posibleEmulador()) {
       if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(
-          pos => verificarUbicacion(pos.coords.latitude, pos.coords.longitude),
+          pos => registrarMovimiento(pos),
           mostrarError,
           {
             enableHighAccuracy: true,
@@ -176,7 +195,7 @@
         document.getElementById("mensaje").textContent = "Este navegador no soporta geolocalización.";
       }
     } else {
-      document.getElementById("mensaje").textContent = "⚠️ Solo se permite el acceso desde un dispositivo móvil físico ⚠️";
+      document.getElementById("mensaje").textContent = "⚠️ Solo se permite el acceso desde un dispositivo móvil físico. ⚠️";
     }
   </script>
 </body>
