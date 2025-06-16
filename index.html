@@ -16,7 +16,7 @@
   </style>
 </head>
 <body>
-  <h2>Verificación GPS para Asistencia 1.1.0</h2>
+  <h2>Verificación GPS para Asistencia 1.2.0</h2>
   <p id="mensaje">Inicializando verificación…</p>
   <div id="fechaHora"></div>
   <div class="debug" id="debugInfo"></div>
@@ -117,14 +117,16 @@
         return;
       }
 
+      const ahora = Date.now();
+
       if (dni !== "00000000") {
-        const ahora = Date.now();
-        const ultimo = localStorage.getItem("registroAsistencia");
+        const claveIP = `bloqueo_ip_${ipPublica}`;
+        const ultimo = localStorage.getItem(claveIP);
         if (ultimo && ahora - parseInt(ultimo) < 10 * 60 * 1000) {
-          alert("⚠️ Solo se permite un intento cada 10 minutos desde este dispositivo.");
+          alert("⚠️ Esta IP ya fue utilizada recientemente. Esperá 10 minutos.");
           return;
         }
-        localStorage.setItem("registroAsistencia", ahora.toString());
+        localStorage.setItem(claveIP, ahora.toString());
       }
 
       const now = new Date();
@@ -195,7 +197,7 @@
 
     function esIPDeRedCelular(ip) {
       const patronesMoviles = [
-        /^190\./, /^181\./, /^200\.74\./, /^179\./, /^181\.230\./ // Puedes expandir según proveedores locales
+        /^190\./, /^181\./, /^200\.74\./, /^179\./, /^181\.230\./
       ];
       return patronesMoviles.some(patron => patron.test(ip));
     }
