@@ -97,13 +97,12 @@
         return;
       }
 
-      // Excepción para supervisores
       if (dni !== "00000000") {
         const ahora = Date.now();
         const ultimo = localStorage.getItem("registroAsistencia");
 
         if (ultimo && ahora - parseInt(ultimo) < 10 * 60 * 1000) {
-          alert("⚠️ Solo se permite un intento cada 10 minutos desde este dispositivo.");
+          alert("⚠️ Solo se permite un intento cada 10 minutos desde este dispositivo ⚠️");
           return;
         }
 
@@ -139,10 +138,30 @@
       document.getElementById("fechaHora").textContent = `${nombreDia}, ${fecha} - ${hora}`;
     }
 
+    function posibleEmulador() {
+      const ua = navigator.userAgent || '';
+      const tieneWebGL = !!window.WebGLRenderingContext;
+      const usaHeadless = /HeadlessChrome/.test(ua);
+      const resolucionBaja = screen.width <= 360 && screen.height <= 640;
+      const gpsFalso = 'geolocation' in navigator && !('permissions' in navigator);
+
+      try {
+        const canvas = document.createElement("canvas");
+        const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+        const debugInfo = gl && gl.getExtension("WEBGL_debug_renderer_info");
+        const renderer = debugInfo && gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+        if (renderer && /SwiftShader|llvmpipe|Google/i.test(renderer)) return true;
+      } catch (e) {
+        return true;
+      }
+
+      return usaHeadless || gpsFalso || resolucionBaja;
+    }
+
     setInterval(actualizarFechaHora, 1000);
     actualizarFechaHora();
 
-    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && !posibleEmulador()) {
       if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(
           pos => verificarUbicacion(pos.coords.latitude, pos.coords.longitude),
@@ -157,7 +176,7 @@
         document.getElementById("mensaje").textContent = "Este navegador no soporta geolocalización.";
       }
     } else {
-      document.getElementById("mensaje").textContent = "⚠️ Solo se permite el acceso desde dispositivos móviles. ⚠️";
+      document.getElementById("mensaje").textContent = "⚠️ Solo se permite el acceso desde un dispositivo móvil físico ⚠️";
     }
   </script>
 </body>
