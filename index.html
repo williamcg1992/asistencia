@@ -9,6 +9,9 @@
     .dentro { color: green; font-weight: bold; }
     .fuera { color: red; font-weight: bold; }
     #fechaHora { margin-top: 20px; font-size: 1.1em; font-weight: bold; color: #222; }
+    #formularioManual { display: none; margin-top: 20px; text-align: left; }
+    input, button, textarea { display: block; margin: 10px auto; font-size: 1em; padding: 10px; width: 90%; max-width: 400px; }
+    textarea { height: 100px; }
   </style>
 </head>
 <body>
@@ -16,6 +19,13 @@
   <p id="mensaje">Obteniendo ubicación…</p>
   <div id="fechaHora"></div>
   <div class="debug" id="debugInfo"></div>
+
+  <div id="formularioManual">
+    <input type="text" id="nombre" placeholder="Nombre y Apellido" required>
+    <input type="text" id="dni" placeholder="DNI" required>
+    <textarea id="oracion" readonly></textarea>
+    <button onclick="copiarTexto()">Copiar y abrir formulario</button>
+  </div>
 
   <script>
     const sedes = [
@@ -25,14 +35,11 @@
       { nombre: "Piedras", lat: -34.610100, lng: -58.379200 },
       { nombre: "Casa", lat: -34.6289678, lng: -58.4367771 }
     ];
-    const tolerancia = 300; // metros
+    const tolerancia = 300;
     const urlFormulario = "https://forms.gle/efHR1fs1ZuSQDiPLA";
-    let redireccionado = false;
+    let ultimaVez = 0;
 
-    function toRad(x) {
-      return x * Math.PI / 180;
-    }
-
+    function toRad(x) { return x * Math.PI / 180; }
     function calcularDistancia(lat1, lon1, lat2, lon2) {
       const R = 6371000;
       const dLat = toRad(lat2 - lat1);
@@ -44,9 +51,22 @@
       return R * c;
     }
 
+    function generarCodigoVerificador(texto) {
+      let hash = 0;
+      for (let i = 0; i < texto.length; i++) {
+        hash = (hash << 5) - hash + texto.charCodeAt(i);
+        hash |= 0;
+      }
+      return Math.abs(hash).toString(16).toUpperCase().slice(0, 4);
+    }
+
     function verificarUbicacion(lat, lng) {
+      const ahora = Date.now();
+      if (ahora - ultimaVez < 10 * 60 * 1000) return;
+      ultimaVez = ahora;
+
       let debug = `<strong>Tu ubicación:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br><ul>`;
-      let dentro = false;
+      let sedeActual = null;
 
       for (const sede of sedes) {
         const dist = calcularDistancia(lat, lng, sede.lat, sede.lng);
@@ -54,19 +74,31 @@
         debug += `<li>${sede.nombre}: ${dist.toFixed(2)} m 
                   <span class="${enRango ? 'dentro' : 'fuera'}">
                   ${enRango ? '✔️ Dentro' : '❌ Fuera'}</span></li>`;
-        if (enRango) dentro = true;
+        if (enRango && !sedeActual) sedeActual = sede.nombre;
       }
-
       debug += "</ul>";
       document.getElementById("debugInfo").innerHTML = debug;
 
       const mensaje = document.getElementById("mensaje");
+      if (sedeActual) {
+        mensaje.textContent = `✔️ Ubicación verificada: ${sedeActual}. Completá tus datos.`;
+        document.getElementById("formularioManual").style.display = "block";
 
-      if (dentro && !redireccionado) {
-        mensaje.textContent = "✔️ Ubicación verificada. Redirigiendo al formulario...";
-        redireccionado = true;
-        window.location.href = urlFormulario;
-      } else if (!dentro) {
+        document.querySelector("button").onclick = function () {
+          const nombre = document.getElementById("nombre").value.trim();
+          const dni = document.getElementById("dni").value.trim();
+          const now = new Date();
+          const fecha = now.toISOString().split("T")[0];
+          const hora = now.toTimeString().split(" ")[0].slice(0,5);
+          const oracion = `${sedeActual} - ${fecha} ${hora} - ${nombre} - DNI: ${dni}`;
+          const codigo = generarCodigoVerificador(oracion);
+          const textoFinal = `${oracion} - Código: ${codigo}`;
+
+          document.getElementById("oracion").value = textoFinal;
+          navigator.clipboard.writeText(textoFinal);
+          window.open(urlFormulario, '_blank');
+        };
+      } else {
         mensaje.textContent = "❌ Estás fuera del área de las sedes habilitadas.";
       }
     }
@@ -91,18 +123,22 @@
     setInterval(actualizarFechaHora, 1000);
     actualizarFechaHora();
 
-    if ("geolocation" in navigator) {
-      navigator.geolocation.watchPosition(
-        pos => verificarUbicacion(pos.coords.latitude, pos.coords.longitude),
-        mostrarError,
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        }
-      );
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          pos => verificarUbicacion(pos.coords.latitude, pos.coords.longitude),
+          mostrarError,
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
+      } else {
+        document.getElementById("mensaje").textContent = "Este navegador no soporta geolocalización.";
+      }
     } else {
-      document.getElementById("mensaje").textContent = "Este navegador no soporta geolocalización.";
+      document.getElementById("mensaje").textContent = "⚠️ Solo se permite el acceso desde dispositivos móviles.";
     }
   </script>
 </body>
