@@ -182,7 +182,7 @@
       const esTelefono = /android|iphone|ipod/.test(ua);
       const esTouch = 'ontouchstart' in window && navigator.maxTouchPoints > 0;
       const anchoPantalla = Math.min(window.innerWidth, window.innerHeight);
-      const pareceTabletPorAncho = anchoPantalla >= 768;
+      const pareceTabletPorAncho = anchoPantalla >= 900;
       return esTelefono && !esTablet && esTouch && !pareceTabletPorAncho;
     }
 
