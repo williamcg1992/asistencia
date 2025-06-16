@@ -1,0 +1,39 @@
+function verificarCodigos() {
+  const hoja = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const datos = hoja.getDataRange().getValues();
+
+  for (let i = 1; i < datos.length; i++) {
+    const fila = datos[i];
+    const texto = fila[2]; // Columna D (texto con la oración)
+    const resultadoAnterior = fila[3]; // Columna E, donde escribimos resultado
+
+    if (resultadoAnterior) continue; // Ya fue evaluado
+
+    const match = texto.match(/^(.*) - (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) - (.+) - DNI: (\d+) - Código: ([A-Z0-9]{4})$/);
+
+    if (!match) {
+      hoja.getRange(i + 1, 4).setValue("❌ Formato inválido");
+      continue;
+    }
+
+    const [_, sede, fecha, hora, nombre, dni, codigoRecibido] = match;
+    const base = `${sede} - ${fecha} ${hora} - ${nombre} - DNI: ${dni}`;
+    const codigoEsperado = generarCodigo(base);
+
+    const resultado = (codigoRecibido === codigoEsperado) ? "✔️ Válido" : "❌ Código incorrecto";
+    hoja.getRange(i + 1, 4).setValue(resultado);
+  }
+}
+
+function generarCodigo(texto) {
+  let hash = 0;
+  for (let i = 0; i < texto.length; i++) {
+    hash = (hash << 5) - hash + texto.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(16).toUpperCase().slice(0, 4);
+}
+
+
+
+activador verificarCodigos Desde la hoja de cálculo - Al enviar el formulario
