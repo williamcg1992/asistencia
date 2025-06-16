@@ -2,44 +2,44 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Verificación GPS Asistencia</title>
+  <title>Verificación de Asistencia por Ubicación</title>
   <style>
-    body { font-family: Arial; text-align: center; padding: 40px; background: #f0f0f0; }
+    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #f0f0f0; }
     #formulario { display: none; margin-top: 30px; }
-    iframe { width: 100%; max-width: 700px; height: 700px; border: none; }
-    .debug { font-size: 0.9em; margin-top: 20px; color: #333; }
-    .dentro { color: green; }
-    .fuera { color: red; }
+    iframe { width: 100%; max-width: 700px; height: 700px; border: none; border-radius: 10px; }
+    .debug { font-size: 0.95em; margin-top: 20px; color: #333; }
+    .dentro { color: green; font-weight: bold; }
+    .fuera { color: red; font-weight: bold; }
   </style>
 </head>
 <body>
-  <h2>Registro de Asistencia</h2>
-  <p id="mensaje">Verificando ubicación...</p>
+  <h2>Registro de Asistencia con Verificación GPS</h2>
+  <p id="mensaje">Obteniendo ubicación…</p>
 
-  <div class="debug" id="debug"></div>
+  <div class="debug" id="debugInfo"></div>
 
   <div id="formulario">
     <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScHy1uAtJtALnX9WjDOPvP2XPRdxMuY7kmK3AMkAVnItnrXKQ/viewform?embedded=true">
-    Cargando formulario…
+      Cargando formulario…
     </iframe>
   </div>
 
   <script>
-    const radioPermitido = 500; // metros
     const sedes = [
       { nombre: "San Juan", lat: -34.603715, lng: -58.381590 },
       { nombre: "Humberto Primo", lat: -34.604470, lng: -58.380460 },
       { nombre: "Estados Unidos", lat: -34.607220, lng: -58.380400 },
       { nombre: "Piedras", lat: -34.610100, lng: -58.379200 },
-      { nombre: "Casa", lat: -34.615000, lng: -58.381000 }
+      { nombre: "Casa", lat: -34.6289678, lng: -58.4367771 }
     ];
+    const tolerancia = 300; // metros
 
     function toRad(x) {
       return x * Math.PI / 180;
     }
 
     function calcularDistancia(lat1, lon1, lat2, lon2) {
-      const R = 6371000;
+      const R = 6371000; // radio de la Tierra en metros
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
       const a = Math.sin(dLat / 2) ** 2 +
@@ -50,47 +50,60 @@
     }
 
     function verificarUbicacion(lat, lng) {
-      let debug = `<strong>Tu ubicación:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br><ul>`;
-      let dentro = false;
+      let estaCerca = false;
+      let debug = `<strong>Tu ubicación actual:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br><ul>`;
 
       sedes.forEach(sede => {
         const dist = calcularDistancia(lat, lng, sede.lat, sede.lng);
-        debug += `<li>${sede.nombre}: ${dist.toFixed(2)} metros 
-                  <span class="${dist <= radioPermitido ? 'dentro' : 'fuera'}">
-                  (${dist <= radioPermitido ? '✔️ Dentro' : '❌ Fuera'})
-                  </span></li>`;
-        if (dist <= radioPermitido) dentro = true;
+        const dentro = dist <= tolerancia;
+        if (dentro) estaCerca = true;
+        debug += `<li>${sede.nombre}: ${dist.toFixed(2)} m 
+                    <span class="${dentro ? 'dentro' : 'fuera'}">
+                      ${dentro ? '✔️ Dentro del rango' : '❌ Fuera del rango'}
+                    </span>
+                  </li>`;
       });
-      debug += "</ul>";
-      document.getElementById("debug").innerHTML = debug;
 
-      if (dentro) {
-        document.getElementById("mensaje").textContent = "✔️ Ubicación verificada. Podés completar el formulario.";
-        document.getElementById("formulario").style.display = "block";
+      debug += "</ul>";
+      document.getElementById("debugInfo").innerHTML = debug;
+
+      const mensaje = document.getElementById("mensaje");
+      const formulario = document.getElementById("formulario");
+
+      if (estaCerca) {
+        mensaje.textContent = "✔️ Estás dentro del área permitida. Completá el formulario.";
+        formulario.style.display = "block";
       } else {
-        document.getElementById("mensaje").textContent = "❌ Estás fuera de las sedes habilitadas.";
+        mensaje.textContent = "❌ Estás fuera del área de las sedes habilitadas.";
+        formulario.style.display = "none";
       }
     }
 
     function mostrarError(error) {
-      document.getElementById("mensaje").textContent =
-        "Error al obtener ubicación. Activá el GPS y permití el acceso.";
+      let msg = "Error al obtener ubicación.";
+      if (error.code === 1) msg = "Permiso de GPS denegado.";
+      else if (error.code === 2) msg = "Ubicación no disponible.";
+      else if (error.code === 3) msg = "Tiempo de espera agotado.";
+      document.getElementById("mensaje").textContent = "⚠️ " + msg;
     }
 
+    // Solicita posición en tiempo real
     if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          verificarUbicacion(pos.coords.latitude, pos.coords.longitude);
+      navigator.geolocation.watchPosition(
+        position => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          verificarUbicacion(lat, lng);
         },
         mostrarError,
         {
           enableHighAccuracy: true,
-          timeout: 15000,
+          timeout: 10000,
           maximumAge: 0
         }
       );
     } else {
-      document.getElementById("mensaje").textContent = "Este navegador no soporta geolocalización.";
+      document.getElementById("mensaje").textContent = "Este navegador no soporta GPS.";
     }
   </script>
 </body>
