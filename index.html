@@ -16,8 +16,8 @@
   </style>
 </head>
 <body>
-  <h2>Verificación GPS para Asistencia 1.2.0</h2>
-  <p id="mensaje">Inicializando verificación…</p>
+  <h2>Verificación GPS para Asistencia 1.3.0</h2>
+  <p id="mensaje">Obteniendo ubicación…</p>
   <div id="fechaHora"></div>
   <div class="debug" id="debugInfo"></div>
 
@@ -42,7 +42,26 @@
     const tolerancia = 100;
     let sedeActual = null;
     let posiciones = [];
-    let ipPublica = "";
+    let ipUsuario = null;
+
+    async function obtenerIP() {
+      try {
+        const res = await fetch('https://api.ipify.org?format=json');
+        const data = await res.json();
+        ipUsuario = data.ip;
+        const ipRegistrada = localStorage.getItem("ipAsistencia");
+        const tiempoIP = localStorage.getItem("tiempoIpAsistencia");
+
+        if (ipRegistrada === ipUsuario && tiempoIP && Date.now() - parseInt(tiempoIP) < 10 * 60 * 1000) {
+          document.getElementById("mensaje").textContent = "⚠️ Ya se ha enviado un formulario desde esta IP en los últimos 10 minutos.";
+          return false;
+        }
+        return true;
+      } catch (e) {
+        document.getElementById("mensaje").textContent = "⚠️ No se pudo verificar la IP.";
+        return false;
+      }
+    }
 
     function toRad(x) { return x * Math.PI / 180; }
 
@@ -83,7 +102,7 @@
 
       const mensaje = document.getElementById("mensaje");
       if (sedeActual) {
-        mensaje.textContent = `✔️ Ubicación verificada: ${sedeActual}. IP: ${ipPublica}`;
+        mensaje.textContent = `✔️ Ubicación verificada: ${sedeActual}. Completá tus datos.`;
         document.getElementById("formularioManual").style.display = "block";
       } else {
         mensaje.textContent = "❌ Estás fuera del área de las sedes habilitadas.";
@@ -99,6 +118,7 @@
         const d = calcularDistancia(posiciones[0].lat, posiciones[0].lng, posiciones[1].lat, posiciones[1].lng);
         const dt = (posiciones[1].t - posiciones[0].t) / 1000;
         const velocidad = d / dt;
+
         if (velocidad > 100) {
           document.getElementById("mensaje").textContent = "⚠️ Movimiento anormal detectado. Posible manipulación de GPS.";
           return;
@@ -117,22 +137,24 @@
         return;
       }
 
-      const ahora = Date.now();
-
       if (dni !== "00000000") {
-        const claveIP = `bloqueo_ip_${ipPublica}`;
-        const ultimo = localStorage.getItem(claveIP);
+        const ahora = Date.now();
+        const ultimo = localStorage.getItem("registroAsistencia");
+
         if (ultimo && ahora - parseInt(ultimo) < 10 * 60 * 1000) {
-          alert("⚠️ Esta IP ya fue utilizada recientemente. Esperá 10 minutos.");
+          alert("⚠️ Solo se permite un intento cada 10 minutos desde este dispositivo.");
           return;
         }
-        localStorage.setItem(claveIP, ahora.toString());
+
+        localStorage.setItem("registroAsistencia", ahora.toString());
+        localStorage.setItem("ipAsistencia", ipUsuario);
+        localStorage.setItem("tiempoIpAsistencia", ahora.toString());
       }
 
       const now = new Date();
       const fecha = now.toISOString().split("T")[0];
       const hora = now.toTimeString().split(" ")[0].slice(0, 5);
-      const oracion = `${sedeActual} - ${fecha} ${hora} - ${nombre} - DNI: ${dni} - IP: ${ipPublica}`;
+      const oracion = `${sedeActual} - ${fecha} ${hora} - ${nombre} - DNI: ${dni}`;
       const codigo = generarCodigoVerificador(oracion);
       const textoFinal = `${oracion} - Código: ${codigo}`;
 
@@ -161,8 +183,8 @@
     function posibleEmulador() {
       const ua = navigator.userAgent || '';
       const usaHeadless = /HeadlessChrome/.test(ua);
-      const gpsFalso = 'geolocation' in navigator && !('permissions' in navigator);
       const resolucionBaja = screen.width <= 360 && screen.height <= 640;
+      const gpsFalso = 'geolocation' in navigator && !('permissions' in navigator);
 
       try {
         const canvas = document.createElement("canvas");
@@ -177,66 +199,30 @@
       return usaHeadless || gpsFalso || resolucionBaja;
     }
 
-    function esMovil() {
-      const ua = navigator.userAgent.toLowerCase();
-      const esTablet = ua.includes("tablet") || ua.includes("ipad");
-      const esTelefono = /android|iphone|ipod/.test(ua);
-      const esMovilPorTouch = 'ontouchstart' in window && navigator.maxTouchPoints > 0;
-      return esTelefono && !esTablet && esMovilPorTouch;
-    }
-
-    async function obtenerIPPublica() {
-      try {
-        const res = await fetch('https://api.ipify.org?format=json');
-        const data = await res.json();
-        return data.ip;
-      } catch {
-        return null;
-      }
-    }
-
-    function esIPDeRedCelular(ip) {
-      const patronesMoviles = [
-        /^190\./, /^181\./, /^200\.74\./, /^179\./, /^181\.230\./
-      ];
-      return patronesMoviles.some(patron => patron.test(ip));
-    }
-
-    async function iniciarVerificacion() {
-      if (!esMovil() || posibleEmulador()) {
-        document.getElementById("mensaje").textContent = "⚠️ Solo se permite el acceso desde teléfonos móviles físicos.";
-        return;
-      }
-
-      ipPublica = await obtenerIPPublica();
-      if (!ipPublica) {
-        document.getElementById("mensaje").textContent = "⚠️ No se pudo obtener la IP pública. Revisa tu conexión.";
-        return;
-      }
-
-      if (!esIPDeRedCelular(ipPublica)) {
-        document.getElementById("mensaje").textContent = `⚠️ Conexión denegada. Se detectó IP de red Wi-Fi: ${ipPublica}`;
-        return;
-      }
-
-      if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          pos => registrarMovimiento(pos),
-          mostrarError,
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-          }
-        );
-      } else {
-        document.getElementById("mensaje").textContent = "Este navegador no soporta geolocalización.";
-      }
-    }
-
     setInterval(actualizarFechaHora, 1000);
     actualizarFechaHora();
-    iniciarVerificacion();
+
+    (async () => {
+      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && !posibleEmulador()) {
+        if (await obtenerIP()) {
+          if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+              pos => registrarMovimiento(pos),
+              mostrarError,
+              {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+              }
+            );
+          } else {
+            document.getElementById("mensaje").textContent = "Este navegador no soporta geolocalización.";
+          }
+        }
+      } else {
+        document.getElementById("mensaje").textContent = "⚠️ Solo se permite el acceso desde un dispositivo móvil físico.";
+      }
+    })();
   </script>
 </body>
 </html>
